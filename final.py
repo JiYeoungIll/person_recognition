@@ -17,7 +17,9 @@ with open("coco.names", "r") as f:
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 
-# 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상
+# 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상 -- 색상 아닌듯 함
+#np.random.unifrom은 NumPy에서 제공하는 균등분포 함수이다.
+#최소값, 최대값, 데이터 개수 순서로 Parameter를 입력해준다.
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # 내장웹캠 연결
@@ -27,9 +29,11 @@ cap = cv2.VideoCapture(0)
 # cap = cv2.VideoCapture(cv2.CAP_DSHOW+1)           -CAP_DSHOW+()   () : 인덱스 번호
 
 # instantiate a variable 'p' to keep count of persons
-p = 0
+#숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
+#p = 0
 
 # initialize the writer
+#초기화
 writer = None
 (W, H) = (None, None)
 starting_time = time.time()
@@ -104,14 +108,20 @@ while True:
             (x, y) = (boxes[i][0], boxes[i][1])
             (w, h) = (boxes[i][2], boxes[i][3])
             label = str(classes[class_ids[i]])
+            '''
+            굳이 써야되는지 모르겠음
             if label == 'person':
                 p = p
             else:
                 continue
+                '''
             # draw a bounding box rectangle and label on the frame
+            #color : 배열 나옴 [B,G,R]
             color = [int(c) for c in colors[class_ids[i]]]
+            #rectangle(검출영역, 시작점, 종료점, 색상,선굵기 : -1일경우 내부선그리기)
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             text = label
+            #putText(프레임,텍스트,문자열 위치, 폰트,폰트 크기, 색상,굵기)
             cv2.putText(frame, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     elapsed_time = time.time() - starting_time
     fps = frame_id / elapsed_time
