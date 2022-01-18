@@ -1,3 +1,6 @@
+# 졸업작품
+# 지능형 CCTV
+
 import cv2
 import numpy as np
 import time
@@ -28,10 +31,10 @@ output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # 내장웹캠 연결
-cap = cv2.VideoCapture(0)
+# cap = cv2.VideoCapture(0)
 
 # 외부웹캠 연결
-# cap = cv2.VideoCapture(cv2.CAP_DSHOW+1)           -CAP_DSHOW+()   () : 인덱스 번호
+cap = cv2.VideoCapture(cv2.CAP_DSHOW)
 
 # instantiate a variable 'p' to keep count of persons
 # 숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
@@ -47,11 +50,12 @@ running = False
 
 
 def run():
+    global running
     (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     global label2
-    label2.resize(1000, 1000)
+    label2.resize(width, height)
     while running:
         ret, img = cap.read()
         global frame_id
@@ -150,7 +154,9 @@ def run():
             QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
             print("cannot read frame.")
             break
+    writer.release()
     cap.release()
+    print("Thread end.")
 
 def stop():
     global running
@@ -175,8 +181,8 @@ app = QtWidgets.QApplication([])
 win = QtWidgets.QWidget()
 vbox = QtWidgets.QVBoxLayout()
 label2 = QtWidgets.QLabel()
-btn_start = QtWidgets.QPushButton("Camera On")
-btn_stop = QtWidgets.QPushButton("Camera Off")
+btn_start = QtWidgets.QPushButton("카메라 켜기")
+btn_stop = QtWidgets.QPushButton("카메라 끄기")
 vbox.addWidget(label2)
 vbox.addWidget(btn_start)
 vbox.addWidget(btn_stop)
@@ -188,5 +194,3 @@ btn_stop.clicked.connect(stop)
 app.aboutToQuit.connect(onExit)
 
 sys.exit(app.exec_())
-
-# git test
