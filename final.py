@@ -56,9 +56,7 @@ temp = 0
 # ROI 설정을 위해 두개의 변수 값을 바꿔주는 함수
 def swap(v1, v2):
     global temp
-    temp = v1
-    v1 = v2
-    v2 = temp
+    v1 ,v2 = v2,v1
 
 # Press The Left Button Of Mouse == Start Position Of ROI
 # Release The Left Button Of Mouse == End Position Of ROI
@@ -207,6 +205,7 @@ def run():
 
             cv2.imshow("Color", img)
             key = cv2.waitKey(1)
+            #esc 누를경우
             if key == 27:
                 break
 
