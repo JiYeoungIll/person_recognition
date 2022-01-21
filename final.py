@@ -31,10 +31,10 @@ output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # 내장웹캠 연결
-# cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0)
 
 # 외부웹캠 연결
-cap = cv2.VideoCapture(cv2.CAP_DSHOW)
+#cap = cv2.VideoCapture(0)
 
 # instantiate a variable 'p' to keep count of persons
 # 숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
@@ -45,21 +45,57 @@ cap = cv2.VideoCapture(cv2.CAP_DSHOW)
 writer = None
 starting_time = time.time()
 frame_id = 0
-
 running = False
 
+# ROI 설정을 위한 마우스 상태, 좌표 초기화
+mouse_is_pressing = False
+start_x, end_x, start_y, end_y = 0, 0, 0, 0
+step = 0
+temp = 0
+
+# ROI 설정을 위해 두개의 변수 값을 바꿔주는 함수
+def swap(v1, v2):
+    global temp
+    temp = v1
+    v1 = v2
+    v2 = temp
+
+# Press The Left Button Of Mouse == Start Position Of ROI
+# Release The Left Button Of Mouse == End Position Of ROI
+# If Moving The Mouse And Draw Rectangle By ROI Region
+def Mouse_Callback(event, x, y, flags, param):
+    global step, start_x, end_x, start_y, end_y, mouse_is_pressing
+
+    # Press The Left Button
+    if event == cv2.EVENT_LBUTTONDOWN:
+        step = 1
+        mouse_is_pressing = True
+        start_x = x
+        start_y = y
+    # Moving The Mouse
+    elif event == cv2.EVENT_MOUSEMOVE:
+        # If Pressing The Mouse
+        if mouse_is_pressing:
+            step = 2
+            end_x = x
+            end_y = y
+    # Release The Left Button
+    elif event == cv2.EVENT_LBUTTONUP:
+        step = 3
+        mouse_is_pressing = False
+        end_x = x
+        end_y = y
 
 def run():
     global running
     (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     global label2
-    label2.resize(width, height)
+
     while running:
         ret, img = cap.read()
         global frame_id
         frame_id += 1
+
         if W is None or H is None:
             (H, W) = img.shape[:2]
         # 네트워크 입력 블롭 만들기 - cv2.dnn.blob.FromImage
@@ -125,13 +161,12 @@ def run():
                 (x, y) = (boxes[i][0], boxes[i][1])
                 (w, h) = (boxes[i][2], boxes[i][3])
                 label = str(classes[class_ids[i]])
-                '''
-                굳이 써야되는지 모르겠음
+
                 if label == 'person':
-                    p = p
+                    print("person")
                 else:
                     continue
-                    '''
+
                 # draw a bounding box rectangle and label on the frame
                 # color : 배열 나옴 [B,G,R]
                 color = [int(c) for c in colors[class_ids[i]]]
@@ -144,7 +179,37 @@ def run():
         fps = frame_id / elapsed_time
         print(str(round(fps, 2)))
 
+        cv2.namedWindow("Color")
+        cv2.setMouseCallback("Color", Mouse_Callback)
+        # 파이큐티
         if ret:
+
+            # Press The Left Button
+            if step == 1:
+                cv2.circle(img, (start_x, start_y), 10, (0, 255, 0), -1)
+
+            # Moving The Mouse
+            elif step == 2:
+                cv2.rectangle(img, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
+
+            # Release Of The Mouse
+            elif step == 3:
+                # If Start X Position Is Bigger Than End X
+                if start_x > end_x:
+                    swap(start_x, end_x)
+                    swap(start_y, end_y)
+
+                ROI = img[start_y: end_y, start_x: end_x]
+                ROI = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
+                ROI = cv2.Canny(ROI, 150, 50)
+                ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
+                img[start_y: end_y, start_x: end_x] = ROI
+
+            cv2.imshow("Color", img)
+            key = cv2.waitKey(1)
+            if key == 27:
+                break
+
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             h, w, c = img.shape
             qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
@@ -154,9 +219,13 @@ def run():
             QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
             print("cannot read frame.")
             break
+
+
+    cv2.destroyWindow()
     writer.release()
     cap.release()
     print("Thread end.")
+
 
 def stop():
     global running
