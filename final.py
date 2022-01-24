@@ -19,12 +19,26 @@ from PyQt5 import QtCore
 # confing : 구성파일. 알고리즘에 관한 모든 설정
 net = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
 
+net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
+net2 = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
+
+net2.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+net2.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
 # 객체 이름 가져오는 부분
 classes = []
 with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()
-output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+
+classes2 = []
+with open("coco.names", "r") as f:
+    classes2 = [line.strip() for line in f.readlines()]
+layer_names2 = net2.getLayerNames()
+output_layers2 = [layer_names2[i[0] - 1] for i in net2.getUnconnectedOutLayers()]
 
 # 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상 -- 색상 아닌듯 함
 # np.random.unifrom은 NumPy에서 제공하는 균등분포 함수이다.
@@ -90,12 +104,10 @@ def Mouse_Callback(event, x, y, flags, param):
 def run():
     global running
     (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    (W2, H2) = (cap2.get(cv2.CAP_PROP_FRAME_WIDTH), cap2.get(cv2.CAP_PROP_FRAME_HEIGHT))
     global label2, label3
 
     while running:
         ret, img = cap.read()
-        ret2, img2 = cap2.read()
         global frame_id
         frame_id += 1
 
@@ -108,18 +120,15 @@ def run():
         # scalefactor = 딥러닝 학습 진행할 때, 입력 영상을 픽셀값으로 했는지 정규화 이용했는지 맞게 지정
         # size : 학습할 때, 사용한 영상의 크기
         blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-        if W2 is None or H2 is None:
-            (H2, W2) = img.shape[:2]
 
-        blob2 = cv2.dnn.blobFromImage(img2, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
 
 
         # 네트워크 입력 설정하기
         net.setInput(blob)
-        net.setInput(blob2)
 
         # 네트워크 순방향 실행(추론)
         outs = net.forward(output_layers)
+
 
         # initialize our lists of detected bounding boxes, confidences, and class IDs, respectively
         boxes = []
@@ -146,6 +155,7 @@ def run():
                     # 원본 영상에 맞게 scale 적용 및 좌상단, 우하단 좌표 계산
                     center_x = int(detection[0] * W)
                     center_y = int(detection[1] * H)
+
                     w = int(detection[2] * W)
                     h = int(detection[3] * H)
                     # Rectangle coordinates
@@ -157,9 +167,6 @@ def run():
                     confidences.append(float(confidence))
                     class_ids.append(class_id)
 
-        # apply non-maxima suppression to suppress weak, overlapping bounding boxes
-        # 노이즈 제거하는 부분
-        # 같은 물체에 대한 박스가 많은것을 제거
         indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.3, 0.2)
 
         # 사람 검출
@@ -181,20 +188,19 @@ def run():
                 color = [int(c) for c in colors[class_ids[i]]]
                 # rectangle(검출영역, 시작점, 종료점, 색상,선굵기 : -1일경우 내부선그리기)
                 cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
-                cv2.rectangle(img2, (x, y), (x + w, y + h), color, 2)
                 text = label
                 # putText(프레임,텍스트,문자열 위치, 폰트,폰트 크기, 색상,굵기)
                 cv2.putText(img, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                cv2.putText(img2, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
         elapsed_time = time.time() - starting_time
         fps = frame_id / elapsed_time
         print(str(round(fps, 2)))
 
         cv2.namedWindow("Color")
         cv2.setMouseCallback("Color", Mouse_Callback)
+
         # 파이큐티
         if ret:
-
             # Press The Left Button
             if step == 1:
                 cv2.circle(img, (start_x, start_y), 10, (0, 255, 0), -1)
@@ -230,9 +236,130 @@ def run():
             pixmap = QtGui.QPixmap.fromImage(qImg)
             label2.setPixmap(pixmap)
 
+
+        else:
+            QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
+            print("cannot read frame.")
+            break
+
+
+    cv2.destroyWindow()
+    writer.release()
+    cap.release()
+    cap2.release()
+    print("Thread end.")
+
+def run2():
+    global running2
+    (W2, H2) = (cap2.get(cv2.CAP_PROP_FRAME_WIDTH), cap2.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    global label2, label3
+
+    while running2:
+        ret2, img2 = cap2.read()
+        global frame_id
+        frame_id += 1
+
+        if W2 is None or H2 is None:
+            (H2, W2) = img2.shape[:2]
+
+        blob2 = cv2.dnn.blobFromImage(img2, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+
+
+        # 네트워크 입력 설정하기
+        net2.setInput(blob2)
+
+        # 네트워크 순방향 실행(추론)
+        outs2 = net2.forward(output_layers)
+
+        # initialize our lists of detected bounding boxes, confidences, and class IDs, respectively
+        boxes2 = []
+        confidences2 = []
+        class_ids2 = []
+        # loop over each of the layer outputs
+        for out2 in outs2:
+            for detection2 in out2:
+                scores2 = detection2[5:]
+                class_id2 = np.argmax(scores2)
+                confidence2 = scores2[class_id2]
+
+                if confidence2 > 0.65:
+                    center_x2 = int(detection2[0] * W2)
+                    center_y2 = int(detection2[1] * H2)
+
+                    w2 = int(detection2[2] * W2)
+                    h2 = int(detection2[3] * H2)
+                    x2 = int(center_x2 - w2 / 2)
+                    y2 = int(center_y2 - h2 / 2)
+
+                    boxes2.append([x2, y2, w2, h2])
+                    confidences2.append(float(confidence2))
+                    class_ids2.append(class_id2)
+
+        indexes2 = cv2.dnn.NMSBoxes(boxes2, confidences2, 0.3, 0.2)
+
+        if len(indexes2) > 0:
+            # loop over the indexes we are keeping
+            for i in indexes2.flatten():
+                # extract the bounding box coordinates
+                (x2, y2) = (boxes2[i][0], boxes2[i][1])
+                (w2, h2) = (boxes2[i][2], boxes2[i][3])
+                label7 = str(classes2[class_ids2[i]])
+
+                if label7 == 'person':
+                    print("person")
+                else:
+                    continue
+
+                # draw a bounding box rectangle and label on the frame
+                # color : 배열 나옴 [B,G,R]
+                color = [int(c) for c in colors[class_ids2[i]]]
+                # rectangle(검출영역, 시작점, 종료점, 색상,선굵기 : -1일경우 내부선그리기)
+                cv2.rectangle(img2, (x2, y2), (x2 + w2, y2 + h2), color, 2)
+                text2 = label7
+                cv2.putText(img2, text2, (x2, y2 + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+        elapsed_time = time.time() - starting_time
+        fps = frame_id / elapsed_time
+        print(str(round(fps, 2)))
+
+        cv2.namedWindow("Color")
+        cv2.setMouseCallback("Color", Mouse_Callback)
+
+        # 파이큐티
+        if ret2:
+            # Press The Left Button
+            if step == 1:
+                cv2.circle(img2, (start_x, start_y), 10, (0, 255, 0), -1)
+
+            # Moving The Mouse
+            elif step == 2:
+                cv2.rectangle(img2, (start_x, start_y), (end_x, end_y), (0, 255, 0), 3)
+
+            # Release Of The Mouse
+            elif step == 3:
+                # If Start X Position Is Bigger Than End X
+                if start_x > end_x:
+                    swap(start_x, end_x)
+                    swap(start_y, end_y)
+
+                ROI = img2[start_y: end_y, start_x: end_x]
+                ROI = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
+                ROI = cv2.Canny(ROI, 150, 50)
+                ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
+                img2[start_y: end_y, start_x: end_x] = ROI
+
+
+
+
+            cv2.imshow("Color", img2)
+            key = cv2.waitKey(1)
+            #esc 누를경우
+            if key == 27:
+                break
+
             img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-            h, w, c = img2.shape
-            qImg = QtGui.QImage(img2.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+            h2, w2, c2 = img2.shape
+            qImg = QtGui.QImage(img2.data, w2, h2, w2 * c2, QtGui.QImage.Format_RGB888)
             pixmap = QtGui.QPixmap.fromImage(qImg)
             label3.setPixmap(pixmap)
 
@@ -249,18 +376,21 @@ def run():
     cap2.release()
     print("Thread end.")
 
-
 def stop():
-    global running
+    global running, running2
     running = False
+    running2 = False
     print("stoped..")
 
 
 def start():
-    global running
+    global running, running2
     running = True
+    running2 = True
     th = threading.Thread(target=run)
+    th2 = threading.Thread(target=run2)
     th.start()
+    th2.start()
     print("started..")
 
 
@@ -287,7 +417,7 @@ win.show()
 
 
 btn_start.clicked.connect(start)
-btn_stop.clicked.connect(stop)
+btn_stop.clicked.connect(그만)
 app.aboutToQuit.connect(onExit)
 
 sys.exit(app.exec_())
