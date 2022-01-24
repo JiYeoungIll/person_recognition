@@ -10,6 +10,7 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
 
+
 # 네트워크 불러오기 - cv2.dnn.readNet
 # OpenCv로 딥러닝을 실행하기 위해서는 일단 cv2.dnn.readNet 클래스 객체 생성
 # 객체생성에는 훈련된 가중치 / 네트워크 구성을 저장하고 있는 파일이 필요
@@ -31,10 +32,13 @@ output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # 내장웹캠 연결
-cap = cv2.VideoCapture(0)
+#cap = cv2.VideoCapture(0)
+
+cap = cv2.VideoCapture(cv2.CAP_DSHOW)
+cap2 = cv2.VideoCapture(cv2.CAP_DSHOW+1)  #cv2.CAP_DSHOW+1혹은 1로 지정
 
 # 외부웹캠 연결
-#cap = cv2.VideoCapture(0)
+#cap = cv2.VideoCapture(cv2.CAP_DSHOW+1)
 
 # instantiate a variable 'p' to keep count of persons
 # 숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
@@ -45,7 +49,6 @@ cap = cv2.VideoCapture(0)
 writer = None
 starting_time = time.time()
 frame_id = 0
-running = False
 
 # ROI 설정을 위한 마우스 상태, 좌표 초기화
 mouse_is_pressing = False
@@ -87,10 +90,12 @@ def Mouse_Callback(event, x, y, flags, param):
 def run():
     global running
     (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    global label2
+    (W2, H2) = (cap2.get(cv2.CAP_PROP_FRAME_WIDTH), cap2.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    global label2, label3
 
     while running:
         ret, img = cap.read()
+        ret2, img2 = cap2.read()
         global frame_id
         frame_id += 1
 
@@ -103,9 +108,15 @@ def run():
         # scalefactor = 딥러닝 학습 진행할 때, 입력 영상을 픽셀값으로 했는지 정규화 이용했는지 맞게 지정
         # size : 학습할 때, 사용한 영상의 크기
         blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+        if W2 is None or H2 is None:
+            (H2, W2) = img.shape[:2]
+
+        blob2 = cv2.dnn.blobFromImage(img2, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+
 
         # 네트워크 입력 설정하기
         net.setInput(blob)
+        net.setInput(blob2)
 
         # 네트워크 순방향 실행(추론)
         outs = net.forward(output_layers)
@@ -170,9 +181,11 @@ def run():
                 color = [int(c) for c in colors[class_ids[i]]]
                 # rectangle(검출영역, 시작점, 종료점, 색상,선굵기 : -1일경우 내부선그리기)
                 cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+                cv2.rectangle(img2, (x, y), (x + w, y + h), color, 2)
                 text = label
                 # putText(프레임,텍스트,문자열 위치, 폰트,폰트 크기, 색상,굵기)
                 cv2.putText(img, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                cv2.putText(img2, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         elapsed_time = time.time() - starting_time
         fps = frame_id / elapsed_time
         print(str(round(fps, 2)))
@@ -203,17 +216,27 @@ def run():
                 ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
                 img[start_y: end_y, start_x: end_x] = ROI
 
+
+
+
             cv2.imshow("Color", img)
             key = cv2.waitKey(1)
             #esc 누를경우
             if key == 27:
                 break
-
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             h, w, c = img.shape
             qImg = QtGui.QImage(img.data, w, h, w * c, QtGui.QImage.Format_RGB888)
             pixmap = QtGui.QPixmap.fromImage(qImg)
             label2.setPixmap(pixmap)
+
+            img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
+            h, w, c = img2.shape
+            qImg = QtGui.QImage(img2.data, w, h, w * c, QtGui.QImage.Format_RGB888)
+            pixmap = QtGui.QPixmap.fromImage(qImg)
+            label3.setPixmap(pixmap)
+
+
         else:
             QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
             print("cannot read frame.")
@@ -223,6 +246,7 @@ def run():
     cv2.destroyWindow()
     writer.release()
     cap.release()
+    cap2.release()
     print("Thread end.")
 
 
@@ -244,18 +268,23 @@ def onExit():
     print("exit")
     stop()
 
-
 app = QtWidgets.QApplication([])
 win = QtWidgets.QWidget()
 vbox = QtWidgets.QVBoxLayout()
+vbox2 = QtWidgets.QHBoxLayout()
 label2 = QtWidgets.QLabel()
+label3 = QtWidgets.QLabel()
 btn_start = QtWidgets.QPushButton("카메라 켜기")
 btn_stop = QtWidgets.QPushButton("카메라 끄기")
-vbox.addWidget(label2)
+vbox2.addWidget(label2)
+vbox2.addWidget(label3)
+
+vbox.addLayout(vbox2)
 vbox.addWidget(btn_start)
 vbox.addWidget(btn_stop)
 win.setLayout(vbox)
 win.show()
+
 
 btn_start.clicked.connect(start)
 btn_stop.clicked.connect(stop)
