@@ -72,11 +72,13 @@ btn_start = QtWidgets.QPushButton("카메라 켜기")
 btn_stop = QtWidgets.QPushButton("카메라 끄기")
 vbox2.addWidget(label3)
 vbox2.addWidget(label4)
+
 vbox.addLayout(vbox2)
 vbox.addWidget(btn_start)
 vbox.addWidget(btn_stop)
 win.setLayout(vbox)
 win.show()
+
 
 btn_start.clicked.connect(start)
 btn_stop.clicked.connect(stop)
