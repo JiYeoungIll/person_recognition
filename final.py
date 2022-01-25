@@ -17,13 +17,13 @@ from PyQt5 import QtCore
 # cv2.dnn.readNet(model, config=None)
 # model : 훈련된 가중치를 저장하고 있는 파일
 # confing : 구성파일. 알고리즘에 관한 모든 설정
-net = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
 
+# 카메라 1
+net = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
 net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-
+# 카메라 2
 net2 = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
-
 net2.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 net2.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
@@ -40,25 +40,19 @@ with open("coco.names", "r") as f:
 layer_names2 = net2.getLayerNames()
 output_layers2 = [layer_names2[i[0] - 1] for i in net2.getUnconnectedOutLayers()]
 
-# 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상 -- 색상 아닌듯 함
+# 색상 - 사람 인식할때 그려지는 박스 색상 // 색상 아닌듯 함
 # np.random.unifrom은 NumPy에서 제공하는 균등분포 함수이다.
 # 최소값, 최대값, 데이터 개수 순서로 Parameter를 입력해준다.
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 
 # 내장웹캠 연결
 #cap = cv2.VideoCapture(0)
+# 외부웹캠 연결
+#cap = cv2.VideoCapture(cv2.CAP_DSHOW+1)
 
 cap = cv2.VideoCapture(cv2.CAP_DSHOW)
 cap2 = cv2.VideoCapture(cv2.CAP_DSHOW+1)  #cv2.CAP_DSHOW+1혹은 1로 지정
 
-# 외부웹캠 연결
-#cap = cv2.VideoCapture(cv2.CAP_DSHOW+1)
-
-# instantiate a variable 'p' to keep count of persons
-# 숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
-# p = 0
-
-# initialize the writer
 # 초기화
 writer = None
 starting_time = time.time()
@@ -75,36 +69,37 @@ def swap(v1, v2):
     global temp
     v1 ,v2 = v2,v1
 
-# Press The Left Button Of Mouse == Start Position Of ROI
-# Release The Left Button Of Mouse == End Position Of ROI
-# If Moving The Mouse And Draw Rectangle By ROI Region
+# 마우스 왼쪽버튼 눌릴때 == 관심영역 시작
+# 마우스 왼쪽버튼 땔때 == 관심영역 끝
+# 마우스를 이동하여 ROI 영역별로 직사각형을 그리는 경우
 def Mouse_Callback(event, x, y, flags, param):
     global step, start_x, end_x, start_y, end_y, mouse_is_pressing
-
-    # Press The Left Button
+    # 마우스 왼쪽버튼 눌릴때
     if event == cv2.EVENT_LBUTTONDOWN:
         step = 1
         mouse_is_pressing = True
         start_x = x
         start_y = y
-    # Moving The Mouse
+    # 마우스 움직일 때
     elif event == cv2.EVENT_MOUSEMOVE:
-        # If Pressing The Mouse
+        # 마우스 누른 경우
         if mouse_is_pressing:
             step = 2
             end_x = x
             end_y = y
-    # Release The Left Button
+    # 마우스 왼쪽버튼 땔때
     elif event == cv2.EVENT_LBUTTONUP:
         step = 3
         mouse_is_pressing = False
         end_x = x
         end_y = y
 
+# 동작부분
 def run():
     global running
-    (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     global label2, label3
+
+    (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     while running:
         ret, img = cap.read()
@@ -113,15 +108,14 @@ def run():
 
         if W is None or H is None:
             (H, W) = img.shape[:2]
+
         # 네트워크 입력 블롭 만들기 - cv2.dnn.blob.FromImage
         # 객체 탐지 부분
         # 입력 영상을 블롭객체로 만들어 추론을 진행 ( 블롭이란? 이진 스케일로 연결된 픽셀 그룹 )
         # 간단히 말해서 자잘한 객체는 노이즈로 처리 - 특정 크기 이상의 큰 객체만 검출
         # scalefactor = 딥러닝 학습 진행할 때, 입력 영상을 픽셀값으로 했는지 정규화 이용했는지 맞게 지정
-        # size : 학습할 때, 사용한 영상의 크기
+        # size : 학습할 때, 사용한 영상의 크기  (416, 416)  이 크기가 적정값
         blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-
-
 
         # 네트워크 입력 설정하기
         net.setInput(blob)
@@ -129,40 +123,39 @@ def run():
         # 네트워크 순방향 실행(추론)
         outs = net.forward(output_layers)
 
-
-        # initialize our lists of detected bounding boxes, confidences, and class IDs, respectively
+        # 탐지된 경계 상자, 신뢰도 및 클래스 ID의 목록을 각각 초기화합니다.
         boxes = []
         confidences = []
         class_ids = []
-        # loop over each of the layer outputs
+        # 각 레이어 출력 반복
         for out in outs:
             # loop over each of the detections
             for detection in out:
-                # extract the class ID and confidence
+                # 클래스 ID 와 신뢰성 추출
                 # score는 detection 배열에서 5번째 이후 위치에 있는 값
                 scores = detection[5:]
-                # scores 배열에서 가장 높은 값을 가지는 값이 confidence
                 class_id = np.argmax(scores)
+                # scores 배열에서 가장 높은 값을 가지는 값이 confidence
                 # 그리고 그때의 위치 인덱스가 class_id
                 confidence = scores[class_id]
 
-                # confidence(신뢰도) 지정된 0.6 보다 작은 값은 제외 ( 이 값을 잘 조정해야 검출 정확도 달라짐 )
+                # confidence(신뢰도) 지정된 값보다 작은 값은 제외 ( 이 값을 잘 조정해야 검출 정확도 달라짐 )
                 # 1에 가까울수록 탐지 정확도 높음
                 # 0에 가까울수록 정확도는 낮지만, 탐지되는 수가 많아짐
-                if confidence > 0.65:
+                if confidence > 0.7:
                     # detection은 scale된 좌상단, 우하단 좌표를 반환이 아니고,
                     # detection object의 중심좌표와 너비/높이를 반환
                     # 원본 영상에 맞게 scale 적용 및 좌상단, 우하단 좌표 계산
                     center_x = int(detection[0] * W)
                     center_y = int(detection[1] * H)
-
                     w = int(detection[2] * W)
                     h = int(detection[3] * H)
-                    # Rectangle coordinates
+
+                    # 직사각형 좌표
                     x = int(center_x - w / 2)
                     y = int(center_y - h / 2)
 
-                    # update our list of bounding box coordinates, confidences, and class IDs
+                    # 경계 상자 좌표 / 신뢰도 / 클래스 ID 목록 업데이트
                     boxes.append([x, y, w, h])
                     confidences.append(float(confidence))
                     class_ids.append(class_id)
@@ -171,19 +164,18 @@ def run():
 
         # 사람 검출
         if len(indexes) > 0:
-            # loop over the indexes we are keeping
             for i in indexes.flatten():
-                # extract the bounding box coordinates
+                # 경계박스 좌표 추출
                 (x, y) = (boxes[i][0], boxes[i][1])
                 (w, h) = (boxes[i][2], boxes[i][3])
-                label = str(classes[class_ids[i]])
 
+                label = str(classes[class_ids[i]])
                 if label == 'person':
                     print("person")
                 else:
                     continue
 
-                # draw a bounding box rectangle and label on the frame
+                # 프레임에 직사각형 박스 및 라벨 표시
                 # color : 배열 나옴 [B,G,R]
                 color = [int(c) for c in colors[class_ids[i]]]
                 # rectangle(검출영역, 시작점, 종료점, 색상,선굵기 : -1일경우 내부선그리기)
@@ -194,8 +186,11 @@ def run():
 
         elapsed_time = time.time() - starting_time
         fps = frame_id / elapsed_time
-        print(str(round(fps, 2)))
+        #print(str(round(fps, 2)))
+        fps2 = "FPS : %0.1f" % fps
+        cv2.putText(img, fps2, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
+        
         cv2.namedWindow("Color")
         cv2.setMouseCallback("Color", Mouse_Callback)
 
@@ -241,7 +236,7 @@ def run():
             QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
             print("cannot read frame.")
             break
-
+        
 
     cv2.destroyWindow()
     writer.release()
@@ -320,11 +315,12 @@ def run2():
 
         elapsed_time = time.time() - starting_time
         fps = frame_id / elapsed_time
-        print(str(round(fps, 2)))
+        #print(str(round(fps, 2)))
 
+        
         cv2.namedWindow("Color")
         cv2.setMouseCallback("Color", Mouse_Callback)
-
+    
         # 파이큐티
         if ret2:
             # Press The Left Button
@@ -350,7 +346,6 @@ def run2():
 
 
 
-
             cv2.imshow("Color", img2)
             key = cv2.waitKey(1)
             #esc 누를경우
@@ -368,7 +363,7 @@ def run2():
             QtWidgets.QMessageBox.about(win, "Error", "Cannot read frame.")
             print("cannot read frame.")
             break
-
+        
 
     cv2.destroyWindow()
     writer.release()
@@ -417,7 +412,7 @@ win.show()
 
 
 btn_start.clicked.connect(start)
-btn_stop.clicked.connect(그만)
+btn_stop.clicked.connect(stop)
 app.aboutToQuit.connect(onExit)
 
 sys.exit(app.exec_())
