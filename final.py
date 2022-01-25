@@ -19,23 +19,23 @@ from PyQt5 import QtCore
 # confing : 구성파일. 알고리즘에 관한 모든 설정
 
 # 카메라 1
-net = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
+net = cv2.dnn.readNet("yolo/yolov2-tiny.weights", "yolo/yolov2-tiny.cfg")
 net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 # 카메라 2
-net2 = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
+net2 = cv2.dnn.readNet("yolo/yolov2-tiny.weights", "yolo/yolov2-tiny.cfg")
 net2.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
 net2.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
 # 객체 이름 가져오는 부분
 classes = []
-with open("coco.names", "r") as f:
+with open("yolo/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
 classes2 = []
-with open("coco.names", "r") as f:
+with open("yolo/coco.names", "r") as f:
     classes2 = [line.strip() for line in f.readlines()]
 layer_names2 = net2.getLayerNames()
 output_layers2 = [layer_names2[i[0] - 1] for i in net2.getUnconnectedOutLayers()]
