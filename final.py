@@ -15,10 +15,10 @@ from PyQt5 import QtCore
 # cv2.dnn.readNet(model, config=None)
 # model : 훈련된 가중치를 저장하고 있는 파일
 # confing : 구성파일. 알고리즘에 관한 모든 설정
-net = cv2.dnn.readNet("yolov2-tiny.weights", "yolov2-tiny.cfg")
+net = cv2.dnn.readNet("yolo/yolov2-tiny.weights", "yolo/yolov2-tiny.cfg")
 # 객체 이름 가져오는 부분
 classes = []
-with open("coco.names", "r") as f:
+with open("yolo/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()
 output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
