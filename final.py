@@ -10,12 +10,11 @@ from PyQt5 import QtGui
 
 ###
 from imutils.video import FPS
-import argparse # 명령행 파싱(인자를 입력 받고 파싱, 예외처리 등) 모듈
-import imutils # 파이썬 OpenCV가 제공하는 기능 중 복잡하고 사용성이 떨어지는 부분을 보완(이미지 또는 비디오 스트림 파일 처리 등)
-import os # 운영체제 기능 모듈
+import argparse  # 명령행 파싱(인자를 입력 받고 파싱, 예외처리 등) 모듈
+import imutils  # 파이썬 OpenCV가 제공하는 기능 중 복잡하고 사용성이 떨어지는 부분을 보완(이미지 또는 비디오 스트림 파일 처리 등)
+import os  # 운영체제 기능 모듈
 
 fps = FPS().start()
-
 
 # 네트워크 불러오기 - cv2.dnn.readNet
 # OpenCv로 딥러닝을 실행하기 위해서는 일단 cv2.dnn.readNet 클래스 객체 생성
@@ -23,13 +22,16 @@ fps = FPS().start()
 # cv2.dnn.readNet(model, config=None)
 # model : 훈련된 가중치를 저장하고 있는 파일
 # confing : 구성파일. 알고리즘에 관한 모든 설정
-net = cv2.dnn.readNet("yolo/yolov2-tiny.weights", "yolo/yolov2-tiny.cfg")
+net = cv2.dnn.readNet("yolo/yolov4.weights", "yolo/yolov4.cfg")
+net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 # 객체 이름 가져오는 부분
 classes = []
 with open("yolo/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()
-output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+
 # 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상 -- 색상 아닌듯 함
 # np.random.unifrom은 NumPy에서 제공하는 균등분포 함수이다.
 # 최소값, 최대값, 데이터 개수 순서로 Parameter를 입력해준다.
@@ -37,9 +39,8 @@ colors = np.random.uniform(0, 255, size=(len(classes), 3))
 # 내장웹캠 연결
 cap = cv2.VideoCapture(0)
 
-
 # 외부웹캠 연결
-#cap = cv2.VideoCapture(0)
+# cap = cv2.VideoCapture(0)
 # instantiate a variable 'p' to keep count of persons
 # 숫자를 세기위해 p변수 사용 -- 사용 안해도 될듯
 # p = 0
@@ -59,7 +60,7 @@ temp = 0
 # ROI 설정을 위해 두개의 변수 값을 바꿔주는 함수
 def swap(v1, v2):
     global temp
-    v1 ,v2 = v2, v1
+    v1, v2 = v2, v1
     return (v1, v2)
 
 
@@ -87,10 +88,13 @@ def Mouse_Callback(event, x, y, flags, param):
         mouse_is_pressing = False
         end_x = x
         end_y = y
+
+
 aaaa = False
 
 # counting 수 초기
 count = 0
+
 
 def run():
     global count
@@ -98,17 +102,16 @@ def run():
     global running
     (W, H) = (cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     global label2
-    global start_x , start_y, end_x, end_y, step
+    global start_x, start_y, end_x, end_y, step
     while running:
         ret, img = cap.read()
-        #img = imutils.resize(img, width=1500)
+        # img = imutils.resize(img, width=1500)
         count = 0
         global frame_id
         frame_id += 1
 
-
-        #if W is None or H is None:
-            #(H, W) = img.shape[:2]
+        # if W is None or H is None:
+        # (H, W) = img.shape[:2]
         # 네트워크 입력 블롭 만들기 - cv2.dnn.blob.FromImage
         # 객체 탐지 부분
         # 입력 영상을 블롭객체로 만들어 추론을 진행 ( 블롭이란? 이진 스케일로 연결된 픽셀 그룹 )
@@ -117,16 +120,16 @@ def run():
         # size : 학습할 때, 사용한 영상의 크기
         if step == 3:
 
-        #if aaaa==True:
+            # if aaaa==True:
             frm = img.copy()
             frm = frm[start_y: end_y, start_x: end_x]
             print(frm.shape)
 
             if frame_id % 5 == 1:
-             blob = cv2.dnn.blobFromImage(frm , 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-             (H, W) = frm.shape[:2]
+                blob = cv2.dnn.blobFromImage(frm, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+                (H, W) = frm.shape[:2]
 
-        else :
+        else:
             (H, W) = img.shape[:2]
             blob = cv2.dnn.blobFromImage(img, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
         # 네트워크 입력 설정하기
@@ -183,7 +186,7 @@ def run():
 
                     # counting 수 증가
                     count += 1
-                    #print("person{}".format(frame_id))
+                    # print("person{}".format(frame_id))
                     # 클래스 ID 및 확률
                     text = "{} : {:.2f}%".format(classes[class_ids[i]], confidences[i])
                     # label text 잘림 방지
@@ -202,20 +205,21 @@ def run():
                     text = label
                     # putText(프레임,텍스트,문자열 위치, 폰트,폰트 크기, 색상,굵기)
                     cv2.putText(img, text, (x, y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-                else :
-                    #img = img[start_y: end_y, start_x: end_x]
-                    cv2.rectangle(img, (start_x+x, start_y+y), (x+start_x + w, y+start_y + h), color, 2)
+                else:
+                    # img = img[start_y: end_y, start_x: end_x]
+                    cv2.rectangle(img, (start_x + x, start_y + y), (x + start_x + w, y + start_y + h), color, 2)
                     text = label
                     # putText(프레임,텍스트,문자열 위치, 폰트,폰트 크기, 색상,굵기)
-                    cv2.putText(img, text, (start_x+x, start_y+y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    cv2.putText(img, text, (start_x + x, start_y + y + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0),
+                                2)
 
         # counting 결과 출력
         counting_text = "People Counting : {}".format(count)
         cv2.putText(img, counting_text, (10, img.shape[0] - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.85, (0, 0, 255), 3)
 
-        #elapsed_time = time.time() - starting_time
-        #fps = frame_id / elapsed_time
-        #print(str(round(fps, 2)))
+        # elapsed_time = time.time() - starting_time
+        # fps = frame_id / elapsed_time
+        # print(str(round(fps, 2)))
         cv2.namedWindow("Color")
         cv2.setMouseCallback("Color", Mouse_Callback)
         # 파이큐티
@@ -238,15 +242,13 @@ def run():
                     start_y, end_y = end_y, start_y
 
                 ROI = img[start_y: end_y, start_x: end_x]
-                ROI = cv2.cvtColor(ROI, cv2.COLOR_BGR2GRAY)
-                ROI = cv2.Canny(ROI, 150, 50)
-                ROI = cv2.cvtColor(ROI, cv2.COLOR_GRAY2BGR)
+                ROI = cv2.add(ROI, (50, 50, 100, 50))
                 img[start_y: end_y, start_x: end_x] = ROI
                 aaaa = True
 
             cv2.imshow("Color", img)
             key = cv2.waitKey(1)
-            #esc 누를경우
+            # esc 누를경우
             if key == 27:
                 break
 
@@ -264,19 +266,28 @@ def run():
     writer.release()
     cap.release()
     print("Thread end.")
+
+
 def stop():
     global running
     running = False
     print("stoped..")
+
+
 def start():
     global running
     running = True
     th = threading.Thread(target=run)
+
     th.start()
     print("started..")
+
+
 def onExit():
     print("exit")
     stop()
+
+
 app = QtWidgets.QApplication([])
 win = QtWidgets.QWidget()
 vbox = QtWidgets.QVBoxLayout()
