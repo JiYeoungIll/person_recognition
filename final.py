@@ -386,7 +386,7 @@ def start():
     th2 = threading.Thread(target=run2)
     th.start()
     th2.start()
-    print("started..")
+    print("started...")
 
 
 def onExit():
