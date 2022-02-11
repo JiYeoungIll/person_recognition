@@ -30,7 +30,7 @@ classes = []
 with open("yolo/coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
 layer_names = net.getLayerNames()
-output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 
 # 색상(굳이 필요 없어보임) - 사람 인식할때 그려지는 박스 색상 -- 색상 아닌듯 함
 # np.random.unifrom은 NumPy에서 제공하는 균등분포 함수이다.
@@ -220,8 +220,7 @@ def run():
         # elapsed_time = time.time() - starting_time
         # fps = frame_id / elapsed_time
         # print(str(round(fps, 2)))
-        cv2.namedWindow("Color")
-        cv2.setMouseCallback("Color", Mouse_Callback)
+
         # 파이큐티
         if ret:
             # Press The Left Button
@@ -233,20 +232,29 @@ def run():
             # Release Of The Mouse
             elif step == 3:
                 # If Start X Position Is Bigger Than End X
-                if start_x > end_x and start_y < end_y:
+
+                if start_x > end_x and start_y < end_y:      #오른쪽 위에서 왼쪽 아래로 드래그 할 시\
+                    if end_x < 0:
+                        end_x = 0
                     start_x, end_x = end_x, start_x
-                elif start_x > end_x and start_y > end_y:
+                elif start_x > end_x and start_y > end_y:        #오른쪽 아래서 왼쪽 위로 드래그 할 시
+                    if end_y < 0:
+                        end_y = 0
                     start_y, end_y = end_y, start_y
+                    print(start_y)
                     start_x, end_x = end_x, start_x
-                elif start_x < end_x and start_y > end_y:
+                elif start_x < end_x and start_y > end_y:       #왼쪽 아래서 오른쪽 위로 드래그시
+                    if end_y < 0:
+                        end_y = 0
                     start_y, end_y = end_y, start_y
 
                 ROI = img[start_y: end_y, start_x: end_x]
                 ROI = cv2.add(ROI, (50, 50, 100, 50))
                 img[start_y: end_y, start_x: end_x] = ROI
                 aaaa = True
-
-            cv2.imshow("Color", img)
+            cv2.namedWindow("ROI")
+            cv2.setMouseCallback("ROI", Mouse_Callback)
+            cv2.imshow("ROI", img)
             key = cv2.waitKey(1)
             # esc 누를경우
             if key == 27:
@@ -278,7 +286,6 @@ def start():
     global running
     running = True
     th = threading.Thread(target=run)
-
     th.start()
     print("started..")
 
