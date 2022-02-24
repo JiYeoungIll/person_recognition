@@ -20,6 +20,17 @@ import os  # 운영체제 기능 모듈
 
 fps = FPS().start()
 
+# 파이토치 및 GPU 사용중인지 테스트
+# 만약 GPU 사용중이면 True 아니면 FALSE 로 뜰 것!
+
+import torch
+print(torch.__version__)
+print(torch.version.cuda)
+a = torch.tensor([[1., -1.], [1., -1.]])
+print(a)
+print(torch.cuda.is_available())
+if torch.cuda.is_available() == True:
+    print(a.cuda())
 
 # 네트워크 불러오기 - cv2.dnn.readNet
 # OpenCv로 딥러닝을 실행하기 위해서는 일단 cv2.dnn.readNet 클래스 객체 생성
@@ -117,7 +128,6 @@ def run():
         if step == 3:
             frm = img.copy()
             frm = frm[start_y: end_y, start_x: end_x]
-            print(frm.shape)
             if frame_id % 5 == 1:
              blob = cv2.dnn.blobFromImage(frm , 0.00392, (416, 416), (0, 0, 0), True, crop=False)
              (H, W) = frm.shape[:2]
@@ -186,6 +196,7 @@ def run():
                     # label text 잘림 방지
                     y = y - 15 if y - 15 > 15 else y + 15
                     # text 출력
+                    #사람 확률 켁스트
                     cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                 else:
                     continue
